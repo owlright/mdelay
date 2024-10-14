@@ -17,6 +17,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "mdelayhdr.h"
+#include "util.h"
+
 #define PACKET_LEN 1024
 #define UDP_PAYLOAD_SIZE 900
 
@@ -115,14 +118,17 @@ void* send_packets(void* arg)
     unsigned char payload[UDP_PAYLOAD_SIZE];
     memset(payload, 'A', UDP_PAYLOAD_SIZE); // for debugging?
     memcpy(header, payload, UDP_PAYLOAD_SIZE);
+    struct mdelayhdr mdelayhdr;
+    memset(&mdelayhdr, 0, sizeof(mdelayhdr));
     for (int i = 0; i < cfg->cfg_max_packets; i++) {
         usleep(200);
-
+        mdelayhdr.seq = htonl(i);
         struct timeval tv;
         gettimeofday(&tv, NULL);
         uint64_t timestamp_nanos = tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
-        memcpy(buffer + 42, &timestamp_nanos, sizeof(timestamp_nanos));
-
+        mdelayhdr.t1 = hton64(timestamp_nanos);
+        // memcpy(buffer + 42, &timestamp_nanos, sizeof(timestamp_nanos));
+        memcpy(header, &mdelayhdr, sizeof(mdelayhdr));
         if (sendto(fd, buffer, PACKET_LEN, 0, (struct sockaddr*)&sa, sizeof(sa)) < 0) {
             perror("sendto");
             exit(EXIT_FAILURE);
@@ -207,7 +213,7 @@ int main(int argc, char* argv[])
     // uint64_t latency_numbers[TOTAL_PACKETS];
     uint64_t* latency_numbers = malloc(cfg.cfg_max_packets * sizeof(uint64_t));
     uint64_t previous_received_timestamp = 0;
-
+    struct mdelayhdr mdelayhdr;
     for (int i = 0; i < cfg.cfg_max_packets; i++) {
         recvfrom(sock, buf, UDP_PAYLOAD_SIZE, 0, NULL, NULL);
 
@@ -215,9 +221,10 @@ int main(int argc, char* argv[])
         gettimeofday(&tv, NULL);
         uint64_t timestamp_nanos = tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
 
-        uint64_t received_timestamp;
-        memcpy(&received_timestamp, buf, sizeof(received_timestamp));
-
+        // uint64_t received_timestamp;
+        // memcpy(&received_timestamp, buf, sizeof(received_timestamp));
+        memcpy(&mdelayhdr, buf, sizeof(mdelayhdr));
+        uint64_t received_timestamp = ntoh64(mdelayhdr.t1);
         if (previous_received_timestamp == received_timestamp) {
             fprintf(stderr, "Unlikely\n");
             exit(EXIT_FAILURE);

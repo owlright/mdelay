@@ -1,4 +1,5 @@
 timestamping
 sender
+*.o
 *.out
 *.txt

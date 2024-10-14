@@ -30,6 +30,8 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include "mdelayhdr.h"
+#include "util.h"
 
 static uint64_t total_received = 0;
 static uint64_t* nic_kernel_latency_numbers = NULL;
@@ -420,8 +422,10 @@ static int do_recv(int sock, unsigned int pkt_num, struct configuration* cfg)
     got = recvmsg(sock, &msg, 0);
     if (!got && errno == EAGAIN)
         return 0;
+    struct mdelayhdr mdelayhdr;
+    memcpy(&mdelayhdr, buffer, sizeof(mdelayhdr));
 
-    // printf("Packet %d - %d bytes\n", pkt_num, got);
+    printf("Packet %d - %d bytes\n", ntohl(mdelayhdr.seq), got);
     handle_time(&msg, cfg);
     broadcast(buffer, got);
     return got;
