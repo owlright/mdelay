@@ -69,7 +69,8 @@ void* send_packets(void* arg)
     memcpy(eth_header.ether_shost, src_mac, ETH_ALEN); // 源 MAC 地址
     eth_header.ether_type = htons(ETH_P_IP); // 以太网类型
 
-    memcpy(buffer, &eth_header, sizeof(struct ether_header));
+    unsigned char* header = buffer;
+    memcpy(header, &eth_header, sizeof(struct ether_header));
 
     // 构建 IP 头
     struct iphdr ip_header;
@@ -96,7 +97,8 @@ void* send_packets(void* arg)
     ip_header.check = (unsigned short)(~ip_checksum);
 
     // 将 IP 头复制到 buffer 中
-    memcpy(buffer + sizeof(struct ether_header), &ip_header, sizeof(struct iphdr));
+    header += sizeof(struct ether_header);
+    memcpy(header, &ip_header, sizeof(struct iphdr));
 
     // 构建 UDP 头
     struct udphdr udp_header;
@@ -106,12 +108,13 @@ void* send_packets(void* arg)
     udp_header.check = 0; // 校验和，0 表示由内核计算
 
     // 将 UDP 头复制到 buffer 中
-    memcpy(buffer + sizeof(struct ether_header) + sizeof(struct iphdr), &udp_header,
-        sizeof(struct udphdr)); // 假设以太网头和 IP 头共占 34 字节
-    unsigned char payload[UDP_PAYLOAD_SIZE];
-    memset(payload, 'A', UDP_PAYLOAD_SIZE);
-    memcpy(buffer + 42, payload, UDP_PAYLOAD_SIZE);
+    header += sizeof(struct iphdr);
+    memcpy(header, &udp_header, sizeof(struct udphdr));
 
+    // self defined header
+    unsigned char payload[UDP_PAYLOAD_SIZE];
+    memset(payload, 'A', UDP_PAYLOAD_SIZE); // for debugging?
+    memcpy(header, payload, UDP_PAYLOAD_SIZE);
     for (int i = 0; i < cfg->cfg_max_packets; i++) {
         usleep(200);
 
