@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
+#include <getopt.h>
 #include <net/ethernet.h> // Add this line to define struct ether_header
 #include <net/if.h>
 #include <netinet/ether.h>
@@ -19,6 +20,14 @@
 #define PACKET_LEN 1024
 #define UDP_PAYLOAD_SIZE 900
 #define TOTAL_PACKETS 10
+
+struct configuration {
+    const char* cfg_iface; /* interface name */
+    int cfg_ifidx; /* interface index */
+    unsigned short cfg_dport; /* destionation port */
+    int cfg_protocol; // ! not supported
+    unsigned int cfg_max_packets; /* Stop after this many (0=forever) */
+};
 
 int open_fd()
 {
@@ -121,18 +130,59 @@ void* send_packets(void* arg)
     return NULL;
 }
 
+static void parse_options(int argc, char** argv, struct configuration* cfg)
+{
+    int option_index = 0;
+    int opt;
+    static struct option long_options[] = {
+        { "interface", required_argument, 0, 'i' },
+        { "dport", required_argument, 0, 'p' },
+        { "protocol", required_argument, 0, 'P' },
+        { "max", required_argument, 0, 'n' },
+        { 0, no_argument, 0, 0 },
+    };
+    const char* optstring = "i:p:P:n:";
+
+    /* Defaults */
+    bzero(cfg, sizeof(struct configuration));
+    cfg->cfg_iface = "eth0";
+    cfg->cfg_dport = 1337;
+    cfg->cfg_protocol = IPPROTO_UDP;
+
+    opt = getopt_long(argc, argv, optstring, long_options, &option_index);
+    while (opt != -1) {
+        switch (opt) {
+        case 'i':
+            cfg->cfg_iface = optarg;
+            unsigned int if_idx = if_nametoindex(cfg->cfg_iface);
+            if (if_idx == 0) {
+                fprintf(stderr, "Error: Interface %s not found.\n", cfg->cfg_iface);
+                exit(EXIT_FAILURE);
+            }
+            cfg->cfg_ifidx = if_idx;
+            break;
+        case 'p':
+            cfg->cfg_dport = atoi(optarg);
+            break;
+        case 'n':
+            cfg->cfg_max_packets = atoi(optarg);
+            break;
+        default:
+            fprintf(stderr, "Invalid option\n");
+            exit(EXIT_FAILURE);
+            break;
+        }
+        opt = getopt_long(argc, argv, optstring, long_options, &option_index);
+    }
+}
+
 int main(int argc, char* argv[])
 {
-    const char* interface = (argc >= 2) ? argv[1] : "eth0";
-    unsigned int if_idx = if_nametoindex(interface);
-    if (if_idx == 0) {
-        fprintf(stderr, "Error: Interface %s not found.\n", interface);
-        exit(EXIT_FAILURE);
-    }
-
+    struct configuration cfg;
+    parse_options(argc, argv, &cfg);
     int fd = open_fd();
 
-    struct thread_args args = { fd, if_idx };
+    struct thread_args args = { fd, cfg.cfg_ifidx };
     pthread_t thread;
     pthread_create(&thread, NULL, send_packets, &args);
 
@@ -154,10 +204,11 @@ int main(int argc, char* argv[])
     }
 
     unsigned char buf[UDP_PAYLOAD_SIZE];
-    uint64_t latency_numbers[TOTAL_PACKETS];
+    // uint64_t latency_numbers[TOTAL_PACKETS];
+    uint64_t* latency_numbers = malloc(cfg.cfg_max_packets * sizeof(uint64_t));
     uint64_t previous_received_timestamp = 0;
 
-    for (int i = 0; i < TOTAL_PACKETS; i++) {
+    for (int i = 0; i < cfg.cfg_max_packets; i++) {
         recvfrom(sock, buf, UDP_PAYLOAD_SIZE, 0, NULL, NULL);
 
         struct timeval tv;
@@ -183,10 +234,10 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < TOTAL_PACKETS; i++) {
+    for (int i = 0; i < cfg.cfg_max_packets; i++) {
         fprintf(file, "%lu\n", latency_numbers[i]);
     }
-
+    free(latency_numbers);
     fclose(file);
     close(fd);
     close(sock);
