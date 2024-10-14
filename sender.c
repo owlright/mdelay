@@ -117,6 +117,7 @@ void* send_packets(void* arg)
     // self defined header
     unsigned char payload[UDP_PAYLOAD_SIZE];
     memset(payload, 'A', UDP_PAYLOAD_SIZE); // for debugging?
+    header += sizeof(struct udphdr);
     memcpy(header, payload, UDP_PAYLOAD_SIZE);
     struct mdelayhdr mdelayhdr;
     memset(&mdelayhdr, 0, sizeof(mdelayhdr));
