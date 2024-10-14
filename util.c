@@ -1,6 +1,6 @@
-
-
+#include <arpa/inet.h>
 #include "util.h"
+
 uint64_t hton64(uint64_t value)
 {
     if (htonl(1) != 1) {
