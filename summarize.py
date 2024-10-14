@@ -46,7 +46,7 @@ def plot():
     plt.close()
 
     if not exists("latency.txt"):
-        println("latency.txt does not exists");
+        print("latency.txt does not exists");
         return
 
     nic_kernel, nic_user, kernel_user = get_latency_numbers("latency.txt")
