@@ -19,14 +19,17 @@
 
 #define PACKET_LEN 1024
 #define UDP_PAYLOAD_SIZE 900
-#define TOTAL_PACKETS 10
 
 struct configuration {
+    // parsed from cmd arguments
     const char* cfg_iface; /* interface name */
     int cfg_ifidx; /* interface index */
     unsigned short cfg_dport; /* destionation port */
     int cfg_protocol; // ! not supported
     unsigned int cfg_max_packets; /* Stop after this many (0=forever) */
+
+    // context, not parsed from cmd arguments
+    int fd; /* sending */
 };
 
 int open_fd()
@@ -39,20 +42,15 @@ int open_fd()
     return fd;
 }
 
-struct thread_args {
-    int fd;
-    unsigned int if_idx;
-};
-
 void* send_packets(void* arg)
 {
-    struct thread_args* args = (struct thread_args*)arg;
-    int fd = args->fd;
+    struct configuration* cfg = (struct configuration*)arg;
+    int fd = cfg->fd;
     struct sockaddr_ll sa;
     memset(&sa, 0, sizeof(sa));
     sa.sll_family = AF_PACKET;
     sa.sll_protocol = htons(ETH_P_IP);
-    sa.sll_ifindex = args->if_idx;
+    sa.sll_ifindex = cfg->cfg_ifidx;
     sa.sll_hatype = 0;
     sa.sll_pkttype = 0;
     sa.sll_halen = ETH_ALEN;
@@ -114,7 +112,7 @@ void* send_packets(void* arg)
     memset(payload, 'A', UDP_PAYLOAD_SIZE);
     memcpy(buffer + 42, payload, UDP_PAYLOAD_SIZE);
 
-    for (int i = 0; i < TOTAL_PACKETS; i++) {
+    for (int i = 0; i < cfg->cfg_max_packets; i++) {
         usleep(200);
 
         struct timeval tv;
@@ -181,10 +179,9 @@ int main(int argc, char* argv[])
     struct configuration cfg;
     parse_options(argc, argv, &cfg);
     int fd = open_fd();
-
-    struct thread_args args = { fd, cfg.cfg_ifidx };
+    cfg.fd = fd;
     pthread_t thread;
-    pthread_create(&thread, NULL, send_packets, &args);
+    pthread_create(&thread, NULL, send_packets, &cfg);
 
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
