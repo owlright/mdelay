@@ -75,8 +75,8 @@ void* send_packets(void* arg)
     ip_header.ttl = 64; // 生存时间
     ip_header.protocol = IPPROTO_UDP; // 协议
     ip_header.check = 0; // 校验和，0 表示由内核计算
-    ip_header.saddr = inet_addr("192.168.1.1"); // 源 IP 地址
-    ip_header.daddr = inet_addr("192.168.1.2"); // 目的 IP 地址
+    ip_header.saddr = inet_addr("0.0.0.0"); // 源 IP 地址
+    ip_header.daddr = inet_addr("0.0.0.0"); // 目的 IP 地址
     // 计算 IP 头校验和
     ip_header.check = 0;
     unsigned short* ip_header_ptr = (unsigned short*)&ip_header;
