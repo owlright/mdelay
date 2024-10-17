@@ -113,7 +113,7 @@ static int do_recv(int sock, struct configuration* cfg)
 
     /* block for message */
     got = recvmsg(sock, &msg, 0);
-    if (!got && errno == EAGAIN)
+    if (!got)
         return 0;
     struct mdelayhdr mdelayhdr;
     memcpy(&mdelayhdr, buffer, sizeof(mdelayhdr));
