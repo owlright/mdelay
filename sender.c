@@ -245,6 +245,7 @@ int main(int argc, char* argv[])
     for (int i = 0; i < cfg.cfg_max_packets; i++) {
         fprintf(file, "%lu\n", latency_numbers[i]);
     }
+    pthread_join(thread, NULL);
     free(latency_numbers);
     fclose(file);
     close(fd);
