@@ -141,10 +141,6 @@ static int do_recv(int sock, struct configuration* cfg)
     int got;
 
     /* recvmsg header structure */
-    // make_address(0, &host_address);
-    memset(&host_address, 0, sizeof(struct sockaddr_in));
-    host_address.sin_family = AF_INET;
-    host_address.sin_port = htons(cfg->dport);
     iov.iov_base = buffer;
     iov.iov_len = PAYLOAD_SIZE;
     msg.msg_iov = &iov;
