@@ -136,7 +136,7 @@ static int do_recv(int sock, struct configuration* cfg)
     struct msghdr msg;
     struct iovec iov;
     struct sockaddr_in host_address;
-    char buffer[2048];
+    char buffer[PAYLOAD_SIZE];
     char control[1024];
     int got;
 
@@ -146,7 +146,7 @@ static int do_recv(int sock, struct configuration* cfg)
     host_address.sin_family = AF_INET;
     host_address.sin_port = htons(cfg->dport);
     iov.iov_base = buffer;
-    iov.iov_len = 2048;
+    iov.iov_len = PAYLOAD_SIZE;
     msg.msg_iov = &iov;
     msg.msg_iovlen = 1;
     msg.msg_name = &host_address;
@@ -159,10 +159,9 @@ static int do_recv(int sock, struct configuration* cfg)
     if (!got)
         return 0;
     struct mdelayhdr mdelayhdr;
+    memset(&mdelayhdr, 0, sizeof(mdelayhdr));
     memcpy(&mdelayhdr, buffer, sizeof(mdelayhdr));
-    uint64_t received_timestamp = ntoh64(mdelayhdr.t1);
-    uint32_t seq = ntohl(mdelayhdr.seq);
-    printf("Echo seq: %u\n", seq);
+    printf("Packet %d - %d bytes\n", ntohl(mdelayhdr.seq), got);
     return got;
 };
 

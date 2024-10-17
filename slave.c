@@ -8,7 +8,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
-
+#define PAYLOAD_SIZE 900
 static uint64_t total_received = 0;
 
 struct configuration {
@@ -185,13 +185,13 @@ static int do_recv(int sock, struct configuration* cfg)
     struct msghdr msg;
     struct iovec iov;
     struct sockaddr_in host_address;
-    char buffer[2048];
+    char buffer[PAYLOAD_SIZE];
     char control[1024];
     int got;
 
     /* recvmsg header structure */
     iov.iov_base = buffer;
-    iov.iov_len = 2048;
+    iov.iov_len = PAYLOAD_SIZE;
     msg.msg_iov = &iov;
     msg.msg_iovlen = 1;
     msg.msg_name = &host_address;
