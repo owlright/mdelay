@@ -1,12 +1,14 @@
 #include "mdelayhdr.h"
 #include "util.h"
-#include <stdlib.h>
-#include <string.h>
 #include <arpa/inet.h>
 #include <getopt.h>
+#include <netinet/tcp.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+
 #define PAYLOAD_SIZE 900
 struct configuration {
     int protocol; /* IPPROTO_TCP or IPPROTO_UDP */
@@ -72,7 +74,9 @@ static int create_send_socket(struct configuration* cfg)
         domain = SOCK_STREAM;
 
     s = socket(AF_INET, domain, cfg->protocol);
-
+    if (cfg->protocol == IPPROTO_TCP) {
+        TRY(setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &(int) { 1 }, sizeof(int)));
+    }
     memset(&local_address, 0, sizeof(struct sockaddr_in));
     local_address.sin_family = AF_INET;
     local_address.sin_addr.s_addr = INADDR_ANY;
@@ -172,7 +176,8 @@ int main(int argc, char** argv)
     TRY(pthread_create(&thread, NULL, send_packets, &arg));
 
     int echo;
-    while (echo = do_recv(sock, &cfg) && echo > 0);
+    while (echo = do_recv(sock, &cfg) && echo > 0)
+        ;
     pthread_join(thread, NULL);
     close(sock);
     return 0;

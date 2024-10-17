@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <netinet/tcp.h>
 #define PAYLOAD_SIZE 900
 static uint64_t total_received = 0;
 
@@ -72,6 +73,9 @@ static int accept_child(int parent, struct configuration* cfg)
     TEST(child >= 0);
 
     printf("Accept child %s:%d\n", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
+    if (cfg->protocol == IPPROTO_TCP) {
+        TRY(setsockopt(child, IPPROTO_TCP, TCP_NODELAY, &(int) { 1 }, sizeof(int)));
+    }
     // ! no use, but still record the remote ip and port
     cfg->remote_ip = inet_ntoa(cli_addr.sin_addr);
     cfg->remote_port = ntohs(cli_addr.sin_port);
