@@ -19,3 +19,7 @@ slave: slave.c util.c
 
 master: master.c util.c
 	gcc -O2 master.c util.c -o master -lpthread
+
+tai: set_tai_offset.c
+	gcc  set_tai_offset.c -o tai
+

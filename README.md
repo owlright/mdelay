@@ -6,3 +6,4 @@
 - `sender.c` 根据 [hw-timestamping](https://github.com/ArneVogel/hw-timestamping) 中的 rust-packets 用C语言重写
 - `check_clock.c` 来自 https://tsn.readthedocs.io/timesync.html#checking-clocks-synchronization 提供的下载，用于检查PHC(网卡时钟)、CLOCK_REALTIME(UTC系统时钟)，CLOCK_TAI(原子系统时间)之间的offset情况。
     - 使用方法：`gcc check_clock.c -o check_clock`，`sudo ./check_clock -d eno0 -v`
+- `set_tai_offset.c` 貌似要内核编译的时候开启支持才行，当前测试改变不了offset
