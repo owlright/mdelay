@@ -70,6 +70,7 @@ static int accept_child(int parent, struct configuration* cfg)
     TEST(child >= 0);
 
     printf("Accept child %s:%d\n", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
+    // ! no use, but still record the remote ip and port
     cfg->remote_ip = inet_ntoa(cli_addr.sin_addr);
     cfg->remote_port = ntohs(cli_addr.sin_port);
     return child;
@@ -81,13 +82,14 @@ static void echo(int sock, unsigned char* buf, int buflen, struct configuration*
         TRY(send(sock, buf, buflen, 0));
     } else {
         struct sockaddr_in remote_address;
-        socklen_t remote_address_len = sizeof(remote_address);
         memset(&remote_address, 0, sizeof(struct sockaddr_in));
         remote_address.sin_family = AF_INET;
         remote_address.sin_addr.s_addr = inet_addr(cfg->remote_ip);
         remote_address.sin_port = htons(cfg->remote_port);
-        TRY(sendto(sock, buf, buflen, 0, (struct sockaddr*)&remote_address, remote_address_len));
+        TRY(sendto(sock, buf, buflen, 0, (struct sockaddr*)&remote_address, sizeof(remote_address)));
     }
+}
+
 }
 
 static int do_recv(int sock, struct configuration* cfg)
@@ -100,9 +102,6 @@ static int do_recv(int sock, struct configuration* cfg)
     int got;
 
     /* recvmsg header structure */
-    memset(&host_address, 0, sizeof(struct sockaddr_in));
-    host_address.sin_family = AF_INET;
-    host_address.sin_port = htons(cfg->port);
     iov.iov_base = buffer;
     iov.iov_len = 2048;
     msg.msg_iov = &iov;

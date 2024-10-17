@@ -77,12 +77,13 @@ static int create_send_socket(struct configuration* cfg)
     local_address.sin_family = AF_INET;
     local_address.sin_addr.s_addr = INADDR_ANY;
     local_address.sin_port = htons(cfg->sport);
+    printf("Bind to %s:%d\n", inet_ntoa(local_address.sin_addr), ntohs(local_address.sin_port));
     TRY(bind(s, (struct sockaddr*)&local_address, sizeof(local_address)));
 
     memset(&remote_address, 0, sizeof(struct sockaddr_in));
     remote_address.sin_family = AF_INET;
     remote_address.sin_port = htons(cfg->dport);
-    printf("Will send to %s:%d\n", cfg->slave_ip, cfg->dport);
+    printf("Send to %s:%d\n", cfg->slave_ip, cfg->dport);
     remote_address.sin_addr.s_addr = inet_addr(cfg->slave_ip);
 
     if (cfg->protocol == IPPROTO_TCP) {
