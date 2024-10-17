@@ -226,6 +226,8 @@ int main(int argc, char* argv[])
         // memcpy(&received_timestamp, buf, sizeof(received_timestamp));
         memcpy(&mdelayhdr, buf, sizeof(mdelayhdr));
         uint64_t received_timestamp = ntoh64(mdelayhdr.t1);
+        // uint32_t seq = ntohl(mdelayhdr.seq);
+        // printf("%d Echo seq: %u\n", i, seq);
         if (previous_received_timestamp == received_timestamp) {
             fprintf(stderr, "Unlikely\n");
             exit(EXIT_FAILURE);
