@@ -9,6 +9,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+static uint64_t total_received = 0;
+
 struct configuration {
     int protocol; /* IPPROTO_TCP or IPPROTO_UDP */
     unsigned short port;
@@ -119,8 +121,11 @@ static int do_recv(int sock, struct configuration* cfg)
     memcpy(&mdelayhdr, buffer, sizeof(mdelayhdr));
 
     printf("Packet %d - %d bytes\n", ntohl(mdelayhdr.seq), got);
-    // handle_time(&msg, cfg);
-    // broadcast(buffer, got);
+    handle_time(&msg, cfg);
+    if (total_received == 0) {
+        cfg->remote_ip = inet_ntoa(host_address.sin_addr);
+        cfg->remote_port = ntohs(host_address.sin_port);
+    }
     echo(sock, buffer, got, cfg);
     return got;
 };
