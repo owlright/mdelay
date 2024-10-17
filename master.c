@@ -109,7 +109,7 @@ void* send_packets(void* arg)
     if (cfg->protocol == IPPROTO_UDP) {
         memset(&sa, 0, sizeof(sa));
         sa.sin_family = AF_INET;
-        sa.sin_port = htons(cfg->sport);
+        sa.sin_port = htons(cfg->dport);
         sa.sin_addr.s_addr = inet_addr(cfg->slave_ip);
     }
     for (int i = 0; i < cfg->max_packets; i++) {
