@@ -21,7 +21,7 @@ void parse_options(int argc, char** argv, struct configuration* cfg)
     int option_index = 0;
     int opt;
     static struct option long_options[] = {
-        { "slave", no_argument, 0, 's' },
+        { "slave", required_argument, 0, 's' },
         { "sport", required_argument, 0, 'l' },
         { "dport", required_argument, 0, 'd' },
         { "udp", no_argument, 0, 'u' },
