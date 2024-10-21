@@ -4,5 +4,7 @@ sender
 *.out
 *.txt
 *.png
+master
+slave
 
 __pycache__/
