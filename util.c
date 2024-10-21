@@ -18,3 +18,15 @@ uint64_t ntoh64(uint64_t value)
         return value;
     }
 }
+
+/* This routine selects the correct socket option to enable timestamping. */
+void do_ts_sockopt(int sock)
+{
+    printf("Selecting hardware timestamping mode.\n");
+
+    {
+        int enable = SOF_TIMESTAMPING_TX_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SYS_HARDWARE;
+        TRY(setsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &enable, sizeof(int)));
+        printf("enabled timestamping sockopt\n");
+    }
+}

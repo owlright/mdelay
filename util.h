@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
+#include <linux/net_tstamp.h>
+#include <string.h>
+#include <stdlib.h>
 /* Assert-like macros */
 #define TEST(x)                                                                                                        \
     do {                                                                                                               \
@@ -26,4 +29,5 @@
 
 uint64_t hton64(uint64_t value);
 uint64_t ntoh64(uint64_t value);
+void do_ts_sockopt(int sock);
 #endif

@@ -1,7 +1,6 @@
 #include "mdelayhdr.h"
 #include "util.h"
 #include <arpa/inet.h>
-#include <linux/net_tstamp.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -220,18 +219,6 @@ static int do_recv(int sock, struct configuration* cfg)
     return got;
 };
 
-/* This routine selects the correct socket option to enable timestamping. */
-static void do_ts_sockopt(struct configuration* cfg, int sock)
-{
-    printf("Selecting hardware timestamping mode.\n");
-
-    {
-        int enable = SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SYS_HARDWARE
-            | SOF_TIMESTAMPING_SOFTWARE;
-        TRY(setsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &enable, sizeof(int)));
-        printf("enabled timestamping sockopt\n");
-    }
-}
 
 int main(int argc, char** argv)
 {
@@ -245,7 +232,7 @@ int main(int argc, char** argv)
     } else {
         sock = create_listen_socket(&cfg);
     }
-    do_ts_sockopt(&cfg, sock);
+    do_ts_sockopt(sock);
     int got;
     while (got = do_recv(sock, &cfg) && got > 0);
     close(sock);
