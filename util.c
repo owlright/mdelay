@@ -25,7 +25,15 @@ void do_ts_sockopt(int sock)
     printf("Selecting hardware timestamping mode.\n");
 
     {
-        int enable = SOF_TIMESTAMPING_TX_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SYS_HARDWARE;
+        /* https://www.kernel.org/doc/html/v6.3/networking/timestamping.html
+        SOF_TIMESTAMPING_OPT_TX_SWHW:
+                Request both hardware and software timestamps for outgoing packets when
+                SOF_TIMESTAMPING_TX_HARDWARE and SOF_TIMESTAMPING_TX_SOFTWARE are enabled at the same time.
+                If both timestamps are generated, two separate messages will be looped to the socket’s error queue,
+                each containing just one timestamp.
+        */
+        int enable = SOF_TIMESTAMPING_TX_SOFTWARE | SOF_TIMESTAMPING_TX_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE
+            | SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_OPT_TX_SWHW;
         TRY(setsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &enable, sizeof(int)));
         printf("enabled timestamping sockopt\n");
     }
