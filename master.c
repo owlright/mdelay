@@ -223,7 +223,7 @@ void* send_packets(void* arg)
 
     // self defined header
     unsigned char payload[PAYLOAD_SIZE];
-    memset(payload, 'A', PAYLOAD_SIZE); // for debugging?
+
 
     struct sockaddr_in sa; // for udp socket use
     if (cfg->protocol == IPPROTO_UDP) {
@@ -255,10 +255,11 @@ void* send_packets(void* arg)
         gettimeofday(&tv, NULL);
         uint64_t timestamp_nanos = tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
         mdelayhdr.t1 = hton64(timestamp_nanos);
+        mdelayhdr.type = DELAY_REQ;
+        memset(payload, 'A', PAYLOAD_SIZE); // for debugging?
         memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
-        printf("Sending packet %d\n", i);
         printf("now: %ld\n", timestamp_nanos);
-
+        printf("Sending DELAY_REQ packet %d\n", i);
         if (cfg->protocol == IPPROTO_TCP) { // ! tx timestamping is not supported for TCP
             // TRY(send(fd, payload, PAYLOAD_SIZE, 0));
             fprintf(stderr, "Error: TX timestamping is not supported for TCP\n");
@@ -283,8 +284,14 @@ void* send_packets(void* arg)
         // handle_time(&msg, cfg);
         ts_tmp = retrieve_timestamp(&msg);
         memcpy(&ts[2], &ts_tmp[2], sizeof(struct timespec));
-
         print_time(ts);
+
+        mdelayhdr.t2 = hton64(ts[0].tv_sec * 1000000000ULL + ts[0].tv_nsec);
+        mdelayhdr.type = DELAY_REQ_FOLLOW_UP;
+        memset(payload, 'B', PAYLOAD_SIZE); // for debugging?
+        memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
+        printf("Sending DELAY_REQ_FOLLOW_UP packet %d\n", i);
+        TRY(sendto(fd, payload, PAYLOAD_SIZE, 0, (struct sockaddr*)&sa, sizeof(sa)));
     }
     return NULL;
 }
