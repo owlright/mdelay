@@ -211,11 +211,14 @@ static int do_recv(int sock, struct configuration* cfg)
 
     printf("Packet %d - %d bytes\n", ntohl(mdelayhdr.seq), got);
     handle_time(&msg, cfg);
-    if (total_received == 0) {
+    if (total_received == 0) { // todo: total_received is always 0
         cfg->remote_ip = inet_ntoa(host_address.sin_addr);
         cfg->remote_port = ntohs(host_address.sin_port);
     }
-    echo(sock, buffer, got, cfg);
+    memset(&mdelayhdr, 0, sizeof(mdelayhdr));
+    memcpy(&mdelayhdr, buffer, sizeof(mdelayhdr));
+    printf("Packet %d - %d bytes type: %u\n", ntohl(mdelayhdr.seq), got, mdelayhdr.type);
+    // echo(sock, buffer, got, cfg);
     return got;
 };
 
