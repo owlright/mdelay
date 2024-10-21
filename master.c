@@ -74,6 +74,13 @@ static int create_send_socket(struct configuration* cfg)
         domain = SOCK_STREAM;
 
     s = socket(AF_INET, domain, cfg->protocol);
+    TEST(s >= 0);
+    /* Avoid Address already in use problem */
+    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &(int) { 1 }, sizeof(int)) < 0) {
+        perror("setsockopt(SO_REUSEADDR)");
+        close(s);
+        exit(EXIT_FAILURE);
+    }
     if (cfg->protocol == IPPROTO_TCP) {
         TRY(setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &(int) { 1 }, sizeof(int)));
     }
@@ -184,43 +191,63 @@ static void handle_time(struct msghdr* msg, struct configuration* cfg)
     print_time(ts);
 }
 
+struct timespec* retrieve_timestamp(struct msghdr* msg)
+{
+    struct timespec* ts = NULL;
+    struct cmsghdr* cmsg;
+
+    for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+        if (cmsg->cmsg_level != SOL_SOCKET)
+            continue;
+
+        switch (cmsg->cmsg_type) {
+        case SO_TIMESTAMPNS:
+            ts = (struct timespec*)CMSG_DATA(cmsg);
+            break;
+        case SO_TIMESTAMPING:
+            ts = (struct timespec*)CMSG_DATA(cmsg);
+            break;
+        default:
+            /* Ignore other cmsg options */
+            break;
+        }
+    }
+    return ts;
+}
+
 void* send_packets(void* arg)
 {
     struct thread_args* thread_args = (struct thread_args*)arg;
     int fd = thread_args->fd;
     struct configuration* cfg = thread_args->cfg;
 
-    struct msghdr msg;
-    struct iovec iov;
-    struct sockaddr_in host_address;
-
     // self defined header
     unsigned char payload[PAYLOAD_SIZE];
     memset(payload, 'A', PAYLOAD_SIZE); // for debugging?
-    char control[1024];
-    iov.iov_base = payload;
-    iov.iov_len = PAYLOAD_SIZE;
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-    msg.msg_name = NULL;
-    msg.msg_namelen = 0;
-    msg.msg_control = control;
-    msg.msg_controllen = 1024;
+
     struct sockaddr_in sa; // for udp socket use
     if (cfg->protocol == IPPROTO_UDP) {
         memset(&sa, 0, sizeof(sa));
         sa.sin_family = AF_INET;
         sa.sin_port = htons(cfg->dport);
         sa.sin_addr.s_addr = inet_addr(cfg->slave_ip);
-        msg.msg_name = &sa;
-        msg.msg_namelen = sizeof(sa);
-    } else {
-        msg.msg_name = NULL;
-        msg.msg_namelen = 0;
     }
 
     struct mdelayhdr mdelayhdr;
     memset(&mdelayhdr, 0, sizeof(mdelayhdr));
+
+    char control[1024];
+    struct iovec iov; // no need to set this when tx
+    struct msghdr msg;
+    memset(control, 0, sizeof(control));
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_control = control;
+    msg.msg_controllen = sizeof(control);
+
     for (int i = 0; i < cfg->max_packets; i++) {
         usleep(200);
         mdelayhdr.seq = htonl(i);
@@ -230,13 +257,34 @@ void* send_packets(void* arg)
         mdelayhdr.t1 = hton64(timestamp_nanos);
         memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
         printf("Sending packet %d\n", i);
-        TRY(sendmsg(fd, &msg, 0));
-        handle_time(&msg, cfg);
-        // if (cfg->protocol == IPPROTO_TCP) {
-        //     TRY(send(fd, payload, PAYLOAD_SIZE, 0) < 0);
-        // } else {
-        //     TRY(sendto(fd, payload, PAYLOAD_SIZE, 0, (struct sockaddr*)&sa, sizeof(sa)) < 0);
-        // }
+        printf("now: %ld\n", timestamp_nanos);
+
+        if (cfg->protocol == IPPROTO_TCP) { // ! tx timestamping is not supported for TCP
+            // TRY(send(fd, payload, PAYLOAD_SIZE, 0));
+            fprintf(stderr, "Error: TX timestamping is not supported for TCP\n");
+            exit(EXIT_FAILURE);
+        } else {
+            TRY(sendto(fd, payload, PAYLOAD_SIZE, 0, (struct sockaddr*)&sa, sizeof(sa)));
+        }
+        // Obtain the sent packet timestamp.
+        int got;
+        struct timespec ts[3];
+        struct timespec* ts_tmp;
+        do {
+            got = recvmsg(fd, &msg, MSG_ERRQUEUE);
+        } while (got < 0 && errno == EAGAIN); // MSG_ERRQUEUE is non-blocking, make it blocking
+        // handle_time(&msg, cfg);
+        ts_tmp = retrieve_timestamp(&msg);
+        memcpy(&ts[0], &ts_tmp[0], sizeof(struct timespec));
+
+        do {
+            got = recvmsg(fd, &msg, MSG_ERRQUEUE);
+        } while (got < 0 && errno == EAGAIN); // MSG_ERRQUEUE is non-blocking, make it blocking
+        // handle_time(&msg, cfg);
+        ts_tmp = retrieve_timestamp(&msg);
+        memcpy(&ts[2], &ts_tmp[2], sizeof(struct timespec));
+
+        print_time(ts);
     }
     return NULL;
 }
