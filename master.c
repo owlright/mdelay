@@ -189,20 +189,38 @@ void* send_packets(void* arg)
     struct thread_args* thread_args = (struct thread_args*)arg;
     int fd = thread_args->fd;
     struct configuration* cfg = thread_args->cfg;
+
+    struct msghdr msg;
+    struct iovec iov;
+    struct sockaddr_in host_address;
+
     // self defined header
     unsigned char payload[PAYLOAD_SIZE];
     memset(payload, 'A', PAYLOAD_SIZE); // for debugging?
-
-    struct mdelayhdr mdelayhdr;
-    memset(&mdelayhdr, 0, sizeof(mdelayhdr));
-
+    char control[1024];
+    iov.iov_base = payload;
+    iov.iov_len = PAYLOAD_SIZE;
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_control = control;
+    msg.msg_controllen = 1024;
     struct sockaddr_in sa; // for udp socket use
     if (cfg->protocol == IPPROTO_UDP) {
         memset(&sa, 0, sizeof(sa));
         sa.sin_family = AF_INET;
         sa.sin_port = htons(cfg->dport);
         sa.sin_addr.s_addr = inet_addr(cfg->slave_ip);
+        msg.msg_name = &sa;
+        msg.msg_namelen = sizeof(sa);
+    } else {
+        msg.msg_name = NULL;
+        msg.msg_namelen = 0;
     }
+
+    struct mdelayhdr mdelayhdr;
+    memset(&mdelayhdr, 0, sizeof(mdelayhdr));
     for (int i = 0; i < cfg->max_packets; i++) {
         usleep(200);
         mdelayhdr.seq = htonl(i);
@@ -210,14 +228,15 @@ void* send_packets(void* arg)
         gettimeofday(&tv, NULL);
         uint64_t timestamp_nanos = tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
         mdelayhdr.t1 = hton64(timestamp_nanos);
-        // memcpy(buffer + 42, &timestamp_nanos, sizeof(timestamp_nanos));
         memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
         printf("Sending packet %d\n", i);
-        if (cfg->protocol == IPPROTO_TCP) {
-            TRY(send(fd, payload, PAYLOAD_SIZE, 0) < 0);
-        } else {
-            TRY(sendto(fd, payload, PAYLOAD_SIZE, 0, (struct sockaddr*)&sa, sizeof(sa)) < 0);
-        }
+        TRY(sendmsg(fd, &msg, 0));
+        handle_time(&msg, cfg);
+        // if (cfg->protocol == IPPROTO_TCP) {
+        //     TRY(send(fd, payload, PAYLOAD_SIZE, 0) < 0);
+        // } else {
+        //     TRY(sendto(fd, payload, PAYLOAD_SIZE, 0, (struct sockaddr*)&sa, sizeof(sa)) < 0);
+        // }
     }
     return NULL;
 }
@@ -258,6 +277,8 @@ int main(int argc, char** argv)
     parse_options(argc, argv, &cfg);
     int sock;
     sock = create_send_socket(&cfg);
+    TEST(sock >= 0);
+    do_ts_sockopt(sock);
     pthread_t thread;
     struct thread_args arg = { sock, &cfg };
     TRY(pthread_create(&thread, NULL, send_packets, &arg));
