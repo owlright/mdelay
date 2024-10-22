@@ -2,17 +2,25 @@
 #include "util.h"
 #include <arpa/inet.h>
 #include <getopt.h>
+#include <netinet/tcp.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <netinet/tcp.h>
 #define PAYLOAD_SIZE 900
 static uint64_t total_received = 0;
 
+struct p2pdelay {
+    uint64_t sent_tt; // tt is shortcut for timestamp
+    uint64_t recv_tt;
+};
+
+static struct p2pdelay* p2pdelay_measurements = NULL;
+
 struct configuration {
     int protocol; /* IPPROTO_TCP or IPPROTO_UDP */
+    int number_measure;
     unsigned short port;
     /* below are context */
     const char* remote_ip;
@@ -21,13 +29,16 @@ struct configuration {
 
 void parse_options(int argc, char** argv, struct configuration* cfg)
 {
-    const char* optstring = "up:";
+    const char* optstring = "up:n:";
     int opt = getopt(argc, argv, optstring);
     memset(cfg, 0, sizeof(struct configuration));
     cfg->protocol = IPPROTO_TCP;
     cfg->port = 9337;
     while (opt != -1) {
         switch (opt) {
+        case 'n':
+            cfg->number_measure = atoi(optarg);
+            break;
         case 'u':
             cfg->protocol = IPPROTO_UDP;
             break;
@@ -35,6 +46,7 @@ void parse_options(int argc, char** argv, struct configuration* cfg)
             cfg->port = atoi(optarg);
             break;
         default:
+            fprintf(stderr, "wrong option!\n");
             exit(EXIT_FAILURE);
         }
         opt = getopt(argc, argv, optstring);
@@ -129,8 +141,7 @@ static void print_time(struct timespec* ts)
     uint64_t nanoseconds_kernel = ts[0].tv_sec * 1000000000 + ts[0].tv_nsec;
     uint64_t nanoseconds_user = time_user.tv_sec * 1000000000 + time_user.tv_usec * 1000;
 
-    printf("nic: %ld, kernel: %ld, user: %ld\n", nanoseconds_nic,
-           nanoseconds_kernel, nanoseconds_user);
+    printf("nic: %ld, kernel: %ld, user: %ld\n", nanoseconds_nic, nanoseconds_kernel, nanoseconds_user);
 
     diff_nic_kernel = (ts[0].tv_sec - ts[2].tv_sec) * 1000000000 + (ts[0].tv_nsec - ts[2].tv_nsec);
 
@@ -207,27 +218,45 @@ static int do_recv(int sock, struct configuration* cfg)
     if (!got)
         return 0;
     struct mdelayhdr mdelayhdr;
+    uint32_t pktseq;
+    uint64_t t1, t2, t3, t4;
     memcpy(&mdelayhdr, buffer, sizeof(mdelayhdr));
+    pktseq = ntohl(mdelayhdr.seq);
+    t1 = ntoh64(mdelayhdr.t1);
+    t2 = ntoh64(mdelayhdr.t2);
+    t3 = ntoh64(mdelayhdr.t3);
+    t4 = ntoh64(mdelayhdr.t4);
 
-    printf("Packet %d - %d bytes\n", ntohl(mdelayhdr.seq), got);
-    handle_time(&msg, cfg);
+    struct timespec* ts_tmp = retrieve_timestamp(&msg);
+    // handle_time(&msg, cfg);
     if (total_received == 0) { // todo: total_received is always 0
         cfg->remote_ip = inet_ntoa(host_address.sin_addr);
         cfg->remote_port = ntohs(host_address.sin_port);
     }
-    memset(&mdelayhdr, 0, sizeof(mdelayhdr));
-    memcpy(&mdelayhdr, buffer, sizeof(mdelayhdr));
-    printf("Packet %d - %d bytes type: %u\n", ntohl(mdelayhdr.seq), got, mdelayhdr.type);
+    printf("Packet %d - %d bytes type: %u\n", pktseq, got, mdelayhdr.type);
+    switch (mdelayhdr.type) {
+        case DELAY_REQ:
+            p2pdelay_measurements[pktseq].recv_tt = ts_tmp->tv_sec * 1000000000ULL + ts_tmp->tv_nsec;
+            break;
+        case DELAY_REQ_FOLLOW_UP:
+            p2pdelay_measurements[pktseq].sent_tt = t2;
+            printf("p2p delay is %lu ns.\n", p2pdelay_measurements[pktseq].sent_tt - p2pdelay_measurements[pktseq].recv_tt);
+            break;
+        default:
+            fprintf(stderr, "wrong packet type.\n");
+            exit(EXIT_FAILURE);
+    }
+
     // echo(sock, buffer, got, cfg);
     return got;
 };
-
 
 int main(int argc, char** argv)
 {
     struct configuration cfg;
     parse_options(argc, argv, &cfg);
     int parent, sock;
+    p2pdelay_measurements = calloc(cfg.number_measure, sizeof(struct p2pdelay));
     if (cfg.protocol == IPPROTO_TCP) {
         parent = create_listen_socket(&cfg);
         sock = accept_child(parent, &cfg);
@@ -237,7 +266,9 @@ int main(int argc, char** argv)
     }
     do_ts_sockopt(sock);
     int got;
-    while (got = do_recv(sock, &cfg) && got > 0);
+    while (got = do_recv(sock, &cfg) && got > 0)
+        ;
     close(sock);
+    free(p2pdelay_measurements);
     return 0;
 }
