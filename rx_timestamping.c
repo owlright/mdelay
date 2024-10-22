@@ -231,19 +231,6 @@ static void do_ioctl(struct configuration* cfg, int sock)
 #endif
 }
 
-/* This routine selects the correct socket option to enable timestamping. */
-static void do_ts_sockopt(struct configuration* cfg, int sock)
-{
-    printf("Selecting hardware timestamping mode.\n");
-
-    {
-        int enable = SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SYS_HARDWARE
-            | SOF_TIMESTAMPING_SOFTWARE;
-        TRY(setsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &enable, sizeof(int)));
-        printf("enabled timestamping sockopt\n");
-    }
-}
-
 static int add_socket(struct configuration* cfg)
 {
     int s;
@@ -446,7 +433,7 @@ int main(int argc, char** argv)
     sock = parent;
     if (cfg.cfg_protocol == IPPROTO_TCP)
         sock = accept_child(parent);
-    do_ts_sockopt(&cfg, sock);
+    do_ts_sockopt(sock);
 
     nic_user_latency_numbers = malloc(cfg.cfg_max_packets * sizeof(uint64_t));
     nic_kernel_latency_numbers = malloc(cfg.cfg_max_packets * sizeof(uint64_t));
