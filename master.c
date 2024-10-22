@@ -250,6 +250,7 @@ void* send_packets(void* arg)
 
     for (int i = 0; i < cfg->max_packets; i++) {
         usleep(200);
+        memset(&mdelayhdr, 0, sizeof(mdelayhdr));
         mdelayhdr.seq = htonl(i);
         struct timeval tv;
         gettimeofday(&tv, NULL);
@@ -277,21 +278,29 @@ void* send_packets(void* arg)
         // handle_time(&msg, cfg);
         ts_tmp = retrieve_timestamp(&msg);
         memcpy(&ts[0], &ts_tmp[0], sizeof(struct timespec));
-
+        printf("Kernel timestamp %lds %ldns\n", ts[0].tv_sec, ts[0].tv_nsec);
         do {
             got = recvmsg(fd, &msg, MSG_ERRQUEUE);
         } while (got < 0 && errno == EAGAIN); // MSG_ERRQUEUE is non-blocking, make it blocking
         // handle_time(&msg, cfg);
         ts_tmp = retrieve_timestamp(&msg);
         memcpy(&ts[2], &ts_tmp[2], sizeof(struct timespec));
-        print_time(ts);
+        printf("NIC timestamp %lds %ldns\n", ts[2].tv_sec, ts[2].tv_nsec);
 
         mdelayhdr.t2 = hton64(ts[0].tv_sec * 1000000000ULL + ts[0].tv_nsec);
         mdelayhdr.type = DELAY_REQ_FOLLOW_UP;
         memset(payload, 'B', PAYLOAD_SIZE); // for debugging?
         memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
-        printf("Sending DELAY_REQ_FOLLOW_UP packet %d\n", i);
+        printf("Sending DELAY_REQ_FOLLOW_UP packet %d\n\n", i);
         TRY(sendto(fd, payload, PAYLOAD_SIZE, 0, (struct sockaddr*)&sa, sizeof(sa)));
+        // todo: code here is too ugly, need to be refactored
+        // ! just consume the follow_up packets' timestamps which are not used
+        do {
+            got = recvmsg(fd, &msg, MSG_ERRQUEUE);
+        } while (got < 0 && errno == EAGAIN);
+        do {
+            got = recvmsg(fd, &msg, MSG_ERRQUEUE);
+        } while (got < 0 && errno == EAGAIN);
     }
     return NULL;
 }
