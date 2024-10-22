@@ -4,7 +4,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <signal.h>
-
+#include "../mdelayhdr.h"
+#include "../util.h"
 #define PORT 9337
 #define BUFFER_SIZE 1024
 
@@ -18,6 +19,7 @@ void handle_sigint(int sig) {
 
 int main() {
     struct sockaddr_in server_addr, client_addr;
+    char remote_host[50];
     char buffer[BUFFER_SIZE];
     socklen_t addr_len = sizeof(client_addr);
     ssize_t recv_len;
@@ -51,17 +53,23 @@ int main() {
 
     printf("UDP server listening on port %d...\n", PORT);
 
+    struct mdelayhdr mdelayhdr;
+    uint64_t t1, t2, t3, t4;
     // Main loop to receive data
     while (1) {
         recv_len = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&client_addr, &addr_len);
-        printf("Received from IP: %s, Port: %d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+        sprintf(remote_host, "%s:%d", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         if (recv_len < 0) {
             perror("recvfrom failed");
             break;
         }
-
-        buffer[recv_len] = '\0';
-        printf("Received message: %s\n", buffer);
+        memcpy(&mdelayhdr, buffer, sizeof(mdelayhdr));
+        printf("Packet %d - %ld bytes type: %u\n", ntohl(mdelayhdr.seq), recv_len, mdelayhdr.type);
+        t1 = ntoh64(mdelayhdr.t1);
+        t2 = ntoh64(mdelayhdr.t2);
+        t3 = ntoh64(mdelayhdr.t3);
+        t4 = ntoh64(mdelayhdr.t4);
+        printf("t1: %lu, t2: %lu, t3: %lu, t4: %lu\n", t1, t2, t3, t4);
     }
 
     // Close the socket
