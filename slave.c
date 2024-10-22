@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #define PAYLOAD_SIZE 900
-static uint64_t total_received = 0;
+static uint64_t total_measurements = 0;
 
 struct p2pdelay {
     uint64_t sent_tt; // tt is shortcut for timestamp
@@ -20,7 +20,7 @@ static struct p2pdelay* p2pdelay_measurements = NULL;
 
 struct configuration {
     int protocol; /* IPPROTO_TCP or IPPROTO_UDP */
-    int number_measure;
+    int max_number;
     unsigned short port;
     /* below are context */
     const char* remote_ip;
@@ -37,7 +37,7 @@ void parse_options(int argc, char** argv, struct configuration* cfg)
     while (opt != -1) {
         switch (opt) {
         case 'n':
-            cfg->number_measure = atoi(optarg);
+            cfg->max_number = atoi(optarg);
             break;
         case 'u':
             cfg->protocol = IPPROTO_UDP;
@@ -229,7 +229,7 @@ static int do_recv(int sock, struct configuration* cfg)
 
     struct timespec* ts_tmp = retrieve_timestamp(&msg);
     // handle_time(&msg, cfg);
-    if (total_received == 0) { // todo: total_received is always 0
+    if (total_measurements == 0) { // todo: total_received is always 0
         cfg->remote_ip = inet_ntoa(host_address.sin_addr);
         cfg->remote_port = ntohs(host_address.sin_port);
     }
@@ -239,6 +239,7 @@ static int do_recv(int sock, struct configuration* cfg)
             p2pdelay_measurements[pktseq].recv_tt = ts_tmp->tv_sec * 1000000000ULL + ts_tmp->tv_nsec;
             break;
         case DELAY_REQ_FOLLOW_UP:
+            total_measurements += 1;
             p2pdelay_measurements[pktseq].sent_tt = t2;
             printf("p2p delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
             break;
@@ -256,7 +257,7 @@ int main(int argc, char** argv)
     struct configuration cfg;
     parse_options(argc, argv, &cfg);
     int parent, sock;
-    p2pdelay_measurements = calloc(cfg.number_measure, sizeof(struct p2pdelay));
+    p2pdelay_measurements = calloc(cfg.max_number, sizeof(struct p2pdelay));
     if (cfg.protocol == IPPROTO_TCP) {
         parent = create_listen_socket(&cfg);
         sock = accept_child(parent, &cfg);
@@ -266,8 +267,14 @@ int main(int argc, char** argv)
     }
     do_ts_sockopt(sock);
     int got;
-    while (got = do_recv(sock, &cfg) && got > 0)
+    while (got = do_recv(sock, &cfg) && got > 0 && total_measurements < cfg.max_number)
         ;
+
+    FILE* f = fopen("p2p_latency.txt", "w");
+    for (int i = 0; i < total_measurements; ++i) {
+        fprintf(f, "%lu\n", p2pdelay_measurements[i].recv_tt - p2pdelay_measurements[i].sent_tt);
+    }
+    fclose(f);
     close(sock);
     free(p2pdelay_measurements);
     return 0;
