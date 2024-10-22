@@ -25,6 +25,6 @@ slave: slave.c util.c $(BIN_DIR)
 master: master.c util.c $(BIN_DIR)
 	gcc -O2 master.c util.c -o $(BIN_DIR)/master -lpthread
 
-tai: set_tai_offset.c
-	gcc  set_tai_offset.c -o tai
+tai: tool/set_tai_offset.c
+	gcc $^ -o $(BIN_DIR)/$@
 
