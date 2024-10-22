@@ -191,30 +191,6 @@ static void handle_time(struct msghdr* msg, struct configuration* cfg)
     print_time(ts);
 }
 
-struct timespec* retrieve_timestamp(struct msghdr* msg)
-{
-    struct timespec* ts = NULL;
-    struct cmsghdr* cmsg;
-
-    for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
-        if (cmsg->cmsg_level != SOL_SOCKET)
-            continue;
-
-        switch (cmsg->cmsg_type) {
-        case SO_TIMESTAMPNS:
-            ts = (struct timespec*)CMSG_DATA(cmsg);
-            break;
-        case SO_TIMESTAMPING:
-            ts = (struct timespec*)CMSG_DATA(cmsg);
-            break;
-        default:
-            /* Ignore other cmsg options */
-            break;
-        }
-    }
-    return ts;
-}
-
 void* send_packets(void* arg)
 {
     struct thread_args* thread_args = (struct thread_args*)arg;

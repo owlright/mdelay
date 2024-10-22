@@ -6,6 +6,7 @@
 #include <linux/net_tstamp.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/socket.h>
 /* Assert-like macros */
 #define TEST(x)                                                                                                        \
     do {                                                                                                               \
@@ -30,4 +31,5 @@
 uint64_t hton64(uint64_t value);
 uint64_t ntoh64(uint64_t value);
 void do_ts_sockopt(int sock);
+struct timespec* retrieve_timestamp(struct msghdr* msg);
 #endif
