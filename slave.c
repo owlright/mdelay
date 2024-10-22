@@ -240,7 +240,7 @@ static int do_recv(int sock, struct configuration* cfg)
             break;
         case DELAY_REQ_FOLLOW_UP:
             p2pdelay_measurements[pktseq].sent_tt = t2;
-            printf("p2p delay is %lu ns.\n", p2pdelay_measurements[pktseq].sent_tt - p2pdelay_measurements[pktseq].recv_tt);
+            printf("p2p delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
             break;
         default:
             fprintf(stderr, "wrong packet type.\n");
