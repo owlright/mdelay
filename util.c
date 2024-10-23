@@ -66,6 +66,7 @@ struct timespec* retrieve_timestamp(struct msghdr* msg)
     return ts;
 }
 
+/* Sends packets with timestamps followed pervious packet. So this function actually sent 2*N packets. */
 void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkttype, int pktsize, int N)
 {
     unsigned char* payload = calloc(pktsize, 1);
@@ -91,14 +92,27 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
         struct timeval tv;
         gettimeofday(&tv, NULL);
         uint64_t timestamp_nanos = tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
-        mdelayhdr.t1 = hton64(timestamp_nanos);
-        mdelayhdr.type = DELAY_REQ;
-        memset(payload, 'A', pktsize); // for debugging?
+
+        switch (pkttype) {
+        case DELAY_REQ:
+            mdelayhdr.t1 = hton64(timestamp_nanos);
+            mdelayhdr.type = DELAY_REQ;
+            memset(payload, 'A', pktsize); // for debugging?
+            printf("Sending DELAY_REQ packet %d\n", i);
+            break;
+        case DELAY_RESP:
+            mdelayhdr.t3 = hton64(timestamp_nanos);
+            mdelayhdr.type = DELAY_RESP;
+            memset(payload, 'C', pktsize);
+            break;
+        default:
+            fprintf(stderr, "Unknown packet type\n");
+            exit(EXIT_FAILURE);
+        }
+
         memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
-        printf("now: %ld\n", timestamp_nanos);
-        printf("Sending DELAY_REQ packet %d\n", i);
         TRY(sendto(sock, payload, pktsize, 0, (struct sockaddr*)dsa, sizeof(struct sockaddr_in)));
-        // Obtain the sent packet timestamp.
+        /* Obtain the sent packet timestamp. */
         int got;
         struct timespec ts[3];
         struct timespec* ts_tmp;
@@ -116,11 +130,25 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
         memcpy(&ts[2], &ts_tmp[2], sizeof(struct timespec));
         printf("NIC timestamp %lds %ldns\n", ts[2].tv_sec, ts[2].tv_nsec);
 
-        mdelayhdr.t2 = hton64(ts[0].tv_sec * 1000000000ULL + ts[0].tv_nsec);
-        mdelayhdr.type = DELAY_REQ_FOLLOW_UP;
-        memset(payload, 'B', pktsize); // for debugging?
-        memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
-        printf("Sending DELAY_REQ_FOLLOW_UP packet %d\n\n", i);
+        /* Send the follow-up packet.*/
+        timestamp_nanos = ts[0].tv_sec * 1000000000ULL + ts[0].tv_nsec;
+        switch (pkttype) {
+        case DELAY_REQ:
+            mdelayhdr.t1 = hton64(timestamp_nanos);
+            mdelayhdr.type = DELAY_REQ_FOLLOW_UP;
+            memset(payload, 'B', pktsize);
+            printf("Sending DELAY_REQ_FOLLOW_UP packet %d\n\n", i);
+            break;
+        case DELAY_RESP:
+            mdelayhdr.t3 = hton64(timestamp_nanos);
+            mdelayhdr.type = DELAY_RESP_FOLLOW_UP;
+            memset(payload, 'D', pktsize);
+            printf("Sending DELAY_RESP_FOLLOW_UP packet %d\n\n", i);
+            break;
+        default:
+            fprintf(stderr, "Unknown packet type\n");
+            exit(EXIT_FAILURE);
+        }
         TRY(sendto(sock, payload, pktsize, 0, (struct sockaddr*)dsa, sizeof(struct sockaddr_in)));
         // todo: code here is too ugly, need to be refactored
         // ! just consume the follow_up packets' timestamps which are not used
