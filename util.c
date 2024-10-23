@@ -134,7 +134,7 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
         printf("NIC timestamp %lds %ldns\n", ts[2].tv_sec, ts[2].tv_nsec);
 
         /* Send the follow-up packet.*/
-        timestamp_nanos = ts[0].tv_sec * 1000000000ULL + ts[0].tv_nsec;
+        timestamp_nanos = ts[2].tv_sec * 1000000000ULL + ts[2].tv_nsec;
         switch (pkttype) {
         case DELAY_REQ:
             mdelayhdr.t2 = hton64(timestamp_nanos);
