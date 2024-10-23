@@ -238,17 +238,18 @@ static int do_recv(int sock, struct configuration* cfg)
     }
     printf("Packet %d - %d bytes type: %u\n", pktseq, got, mdelayhdr.type);
     switch (mdelayhdr.type) {
-        case DELAY_REQ:
-            p2pdelay_measurements[pktseq].recv_tt = ts_tmp->tv_sec * 1000000000ULL + ts_tmp->tv_nsec;
-            break;
-        case DELAY_REQ_FOLLOW_UP:
-            total_measurements += 1;
-            p2pdelay_measurements[pktseq].sent_tt = t2;
-            printf("p2p delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
-            break;
-        default:
-            fprintf(stderr, "wrong packet type.\n");
-            exit(EXIT_FAILURE);
+    case DELAY_REQ:
+        p2pdelay_measurements[pktseq].recv_tt = ts_tmp->tv_sec * 1000000000ULL + ts_tmp->tv_nsec;
+        break;
+    case DELAY_REQ_FOLLOW_UP:
+        total_measurements += 1; // REQ and REQ_FOLLOW_UP pair is seen as one measurement
+        p2pdelay_measurements[pktseq].sent_tt = t2;
+        printf("p2p delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
+        send_udp_packets_timestamp(sock, &host_address, DELAY_RESP, PAYLOAD_SIZE - 10, 1);
+        break;
+    default:
+        fprintf(stderr, "wrong packet type.\n");
+        exit(EXIT_FAILURE);
     }
 
     // echo(sock, buffer, got, cfg);
