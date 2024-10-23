@@ -104,6 +104,7 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
             mdelayhdr.t3 = hton64(timestamp_nanos);
             mdelayhdr.type = DELAY_RESP;
             memset(payload, 'C', pktsize);
+            printf("Sending DELAY_RESP packet %d\n", i);
             break;
         default:
             fprintf(stderr, "Unknown packet type\n");
