@@ -67,7 +67,7 @@ struct timespec* retrieve_timestamp(struct msghdr* msg)
 }
 
 /* Sends packets with timestamps followed pervious packet. So this function actually sent 2*N packets. */
-void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkttype, int pktsize, int N)
+void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkttype, int pktsize, int N, int seq)
 {
     unsigned char* payload = calloc(pktsize, 1);
     struct mdelayhdr mdelayhdr;
@@ -86,9 +86,10 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
     msg.msg_controllen = sizeof(control);
 
     for (int i = 0; i < N; i++) {
+        int current_seq = seq + i;
         usleep(200);
         memset(&mdelayhdr, 0, sizeof(mdelayhdr));
-        mdelayhdr.seq = htonl(i);
+        mdelayhdr.seq = htonl(current_seq);
         struct timeval tv;
         gettimeofday(&tv, NULL);
         uint64_t timestamp_nanos = tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
@@ -98,13 +99,13 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
             mdelayhdr.t1 = hton64(timestamp_nanos);
             mdelayhdr.type = DELAY_REQ;
             memset(payload, 'A', pktsize); // for debugging?
-            printf("Sending DELAY_REQ packet %d\n", i);
+            printf("Sending DELAY_REQ packet %d\n", current_seq);
             break;
         case DELAY_RESP:
             mdelayhdr.t3 = hton64(timestamp_nanos);
             mdelayhdr.type = DELAY_RESP;
             memset(payload, 'C', pktsize);
-            printf("Sending DELAY_RESP packet %d\n", i);
+            printf("Sending DELAY_RESP packet %d\n", current_seq);
             break;
         default:
             fprintf(stderr, "Unknown packet type\n");
@@ -139,13 +140,13 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
             mdelayhdr.t2 = hton64(timestamp_nanos);
             mdelayhdr.type = DELAY_REQ_FOLLOW_UP;
             memset(payload, 'B', pktsize);
-            printf("Sending DELAY_REQ_FOLLOW_UP packet %d\n\n", i);
+            printf("Sending DELAY_REQ_FOLLOW_UP packet %d\n\n", current_seq);
             break;
         case DELAY_RESP:
             mdelayhdr.t4 = hton64(timestamp_nanos);
             mdelayhdr.type = DELAY_RESP_FOLLOW_UP;
             memset(payload, 'D', pktsize);
-            printf("Sending DELAY_RESP_FOLLOW_UP packet %d\n\n", i);
+            printf("Sending DELAY_RESP_FOLLOW_UP packet %d\n\n", current_seq);
             break;
         default:
             fprintf(stderr, "Unknown packet type\n");

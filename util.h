@@ -43,5 +43,5 @@ uint64_t hton64(uint64_t value);
 uint64_t ntoh64(uint64_t value);
 void do_ts_sockopt(int sock);
 struct timespec* retrieve_timestamp(struct msghdr* msg);
-void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkttype, int pktsize, int N);
+void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkttype, int pktsize, int N, int seq);
 #endif
