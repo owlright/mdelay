@@ -1,5 +1,8 @@
 #include "util.h"
+#include "mdelayhdr.h"
 #include <arpa/inet.h>
+#include <sys/time.h>
+#include <time.h>
 
 uint64_t hton64(uint64_t value)
 {
@@ -61,4 +64,73 @@ struct timespec* retrieve_timestamp(struct msghdr* msg)
         }
     }
     return ts;
+}
+
+void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkttype, int pktsize, int N)
+{
+    unsigned char* payload = calloc(pktsize, 1);
+    struct mdelayhdr mdelayhdr;
+    memset(&mdelayhdr, 0, sizeof(mdelayhdr));
+
+    char control[1024];
+    struct iovec iov; // no need to set this when tx
+    struct msghdr msg;
+    memset(control, 0, sizeof(control));
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_control = control;
+    msg.msg_controllen = sizeof(control);
+
+    for (int i = 0; i < N; i++) {
+        usleep(200);
+        memset(&mdelayhdr, 0, sizeof(mdelayhdr));
+        mdelayhdr.seq = htonl(i);
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        uint64_t timestamp_nanos = tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
+        mdelayhdr.t1 = hton64(timestamp_nanos);
+        mdelayhdr.type = DELAY_REQ;
+        memset(payload, 'A', pktsize); // for debugging?
+        memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
+        printf("now: %ld\n", timestamp_nanos);
+        printf("Sending DELAY_REQ packet %d\n", i);
+        TRY(sendto(sock, payload, pktsize, 0, (struct sockaddr*)dsa, sizeof(struct sockaddr_in)));
+        // Obtain the sent packet timestamp.
+        int got;
+        struct timespec ts[3];
+        struct timespec* ts_tmp;
+        do {
+            got = recvmsg(sock, &msg, MSG_ERRQUEUE);
+        } while (got < 0 && errno == EAGAIN); // MSG_ERRQUEUE is non-blocking, make it blocking
+        ts_tmp = retrieve_timestamp(&msg);
+        memcpy(&ts[0], &ts_tmp[0], sizeof(struct timespec));
+        printf("Kernel timestamp %lds %ldns\n", ts[0].tv_sec, ts[0].tv_nsec);
+
+        do {
+            got = recvmsg(sock, &msg, MSG_ERRQUEUE);
+        } while (got < 0 && errno == EAGAIN);
+        ts_tmp = retrieve_timestamp(&msg);
+        memcpy(&ts[2], &ts_tmp[2], sizeof(struct timespec));
+        printf("NIC timestamp %lds %ldns\n", ts[2].tv_sec, ts[2].tv_nsec);
+
+        mdelayhdr.t2 = hton64(ts[0].tv_sec * 1000000000ULL + ts[0].tv_nsec);
+        mdelayhdr.type = DELAY_REQ_FOLLOW_UP;
+        memset(payload, 'B', pktsize); // for debugging?
+        memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
+        printf("Sending DELAY_REQ_FOLLOW_UP packet %d\n\n", i);
+        TRY(sendto(sock, payload, pktsize, 0, (struct sockaddr*)dsa, sizeof(struct sockaddr_in)));
+        // todo: code here is too ugly, need to be refactored
+        // ! just consume the follow_up packets' timestamps which are not used
+        do {
+            got = recvmsg(sock, &msg, MSG_ERRQUEUE);
+        } while (got < 0 && errno == EAGAIN);
+        do {
+            got = recvmsg(sock, &msg, MSG_ERRQUEUE);
+        } while (got < 0 && errno == EAGAIN);
+    }
+
+    free(payload);
 }
