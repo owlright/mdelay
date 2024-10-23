@@ -1,3 +1,6 @@
+.vscode/
+__pycache__/
+
 timestamping
 sender
 *.o
@@ -5,5 +8,3 @@ sender
 *.txt
 *.png
 bin/
-
-__pycache__/
