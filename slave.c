@@ -228,10 +228,13 @@ static int do_recv(int sock, struct configuration* cfg)
     t4 = ntoh64(mdelayhdr.t4);
 
     struct timespec* ts_tmp = retrieve_timestamp(&msg);
-    // handle_time(&msg, cfg);
-    if (total_measurements == 0) { // todo: total_received is always 0
+
+    if (total_measurements == 0) {
         cfg->remote_ip = inet_ntoa(host_address.sin_addr);
         cfg->remote_port = ntohs(host_address.sin_port);
+    } else {
+        host_address.sin_addr.s_addr = inet_addr(cfg->remote_ip);
+        host_address.sin_port = htons(cfg->remote_port);
     }
     printf("Packet %d - %d bytes type: %u\n", pktseq, got, mdelayhdr.type);
     switch (mdelayhdr.type) {
