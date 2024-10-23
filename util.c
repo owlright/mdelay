@@ -150,6 +150,7 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
             fprintf(stderr, "Unknown packet type\n");
             exit(EXIT_FAILURE);
         }
+        memcpy(payload, &mdelayhdr, sizeof(mdelayhdr));
         TRY(sendto(sock, payload, pktsize, 0, (struct sockaddr*)dsa, sizeof(struct sockaddr_in)));
         // todo: code here is too ugly, need to be refactored
         // ! just consume the follow_up packets' timestamps which are not used
