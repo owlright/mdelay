@@ -74,7 +74,7 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
     memset(&mdelayhdr, 0, sizeof(mdelayhdr));
 
     char control[1024];
-    struct iovec iov; // no need to set this when tx
+    struct iovec iov = { .iov_base = NULL, .iov_len = 0 }; // ! DON'T FORGET TO INITIALIZE iov_base and iov_len
     struct msghdr msg;
     memset(control, 0, sizeof(control));
     memset(&msg, 0, sizeof(msg));
@@ -121,6 +121,7 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
             got = recvmsg(sock, &msg, MSG_ERRQUEUE);
         } while (got < 0 && errno == EAGAIN); // MSG_ERRQUEUE is non-blocking, make it blocking
         ts_tmp = retrieve_timestamp(&msg);
+        REASON(got);
         memcpy(&ts[0], &ts_tmp[0], sizeof(struct timespec));
         printf("Kernel timestamp %lds %ldns\n", ts[0].tv_sec, ts[0].tv_nsec);
 
