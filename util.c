@@ -135,13 +135,13 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
         timestamp_nanos = ts[0].tv_sec * 1000000000ULL + ts[0].tv_nsec;
         switch (pkttype) {
         case DELAY_REQ:
-            mdelayhdr.t1 = hton64(timestamp_nanos);
+            mdelayhdr.t2 = hton64(timestamp_nanos);
             mdelayhdr.type = DELAY_REQ_FOLLOW_UP;
             memset(payload, 'B', pktsize);
             printf("Sending DELAY_REQ_FOLLOW_UP packet %d\n\n", i);
             break;
         case DELAY_RESP:
-            mdelayhdr.t3 = hton64(timestamp_nanos);
+            mdelayhdr.t4 = hton64(timestamp_nanos);
             mdelayhdr.type = DELAY_RESP_FOLLOW_UP;
             memset(payload, 'D', pktsize);
             printf("Sending DELAY_RESP_FOLLOW_UP packet %d\n\n", i);
