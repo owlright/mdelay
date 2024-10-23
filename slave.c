@@ -152,7 +152,7 @@ static int do_recv(int sock, struct configuration* cfg)
     printf("Packet %d - %d bytes type: %u\n", pktseq, got, mdelayhdr.type);
     switch (mdelayhdr.type) {
     case DELAY_REQ:
-        p2pdelay_measurements[pktseq].recv_tt = ts_tmp->tv_sec * 1000000000ULL + ts_tmp->tv_nsec;
+        p2pdelay_measurements[pktseq].recv_tt = ts_tmp[2].tv_sec * 1000000000ULL + ts_tmp[2].tv_nsec;
         break;
     case DELAY_REQ_FOLLOW_UP:
         total_measurements += 1; // REQ and REQ_FOLLOW_UP pair is seen as one measurement
