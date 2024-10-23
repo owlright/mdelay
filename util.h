@@ -30,6 +30,15 @@
         }                                                                                                              \
     } while (0)
 
+#define REASON(x)                                                                                                      \
+    do {                                                                                                               \
+        if ((x) < 0) {                                                                                                 \
+            fprintf(stderr, "ERROR: %s\n", #x);                                                                        \
+            fprintf(stderr, "ERROR: at %s:%d\n", __FILE__, __LINE__);                                                  \
+            fprintf(stderr, "ERROR: errno=%d (%s)\n", errno, strerror(errno));                                         \
+            exit(1);                                                                                                   \
+        }                                                                                                              \
+    } while (0)
 uint64_t hton64(uint64_t value);
 uint64_t ntoh64(uint64_t value);
 void do_ts_sockopt(int sock);
