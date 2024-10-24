@@ -11,11 +11,6 @@
 #define PAYLOAD_SIZE 900
 static uint64_t total_measurements = 0;
 
-struct p2pdelay {
-    uint64_t sent_tt; // tt is shortcut for timestamp
-    uint64_t recv_tt;
-};
-
 static struct p2pdelay* p2pdelay_measurements = NULL;
 
 struct configuration {
@@ -157,7 +152,7 @@ static int do_recv(int sock, struct configuration* cfg)
     case DELAY_REQ_FOLLOW_UP:
         total_measurements += 1; // REQ and REQ_FOLLOW_UP pair is seen as one measurement
         p2pdelay_measurements[pktseq].sent_tt = t2;
-        printf("p2p delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
+        printf("master->slave delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
         send_udp_packets_timestamp(sock, &host_address, DELAY_RESP, PAYLOAD_SIZE - 10, 1, pktseq);
         break;
     default:
@@ -187,11 +182,7 @@ int main(int argc, char** argv)
     while (got = do_recv(sock, &cfg) && got > 0 && total_measurements < cfg.measure_number)
         ;
 
-    FILE* f = fopen("p2p_latency.txt", "w");
-    for (int i = 0; i < total_measurements; ++i) {
-        fprintf(f, "%lu\n", p2pdelay_measurements[i].recv_tt - p2pdelay_measurements[i].sent_tt);
-    }
-    fclose(f);
+    store_results_to_file("slave_to_master_latency.txt", p2pdelay_measurements, total_measurements);
     close(sock);
     free(p2pdelay_measurements);
     return 0;

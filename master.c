@@ -10,6 +10,10 @@
 #include <unistd.h>
 
 #define PAYLOAD_SIZE 900
+static uint64_t total_measurements = 0;
+
+static struct p2pdelay* p2pdelay_measurements = NULL;
+
 struct configuration {
     int protocol; /* IPPROTO_TCP or IPPROTO_UDP */
     const char* slave_ip;
@@ -114,7 +118,7 @@ void* send_packets(void* arg)
     sa.sin_family = AF_INET;
     sa.sin_port = htons(cfg->dport);
     sa.sin_addr.s_addr = inet_addr(cfg->slave_ip);
-    send_udp_packets_timestamp(fd, &sa, DELAY_REQ, PAYLOAD_SIZE, cfg->measure_number);
+    send_udp_packets_timestamp(fd, &sa, DELAY_REQ, PAYLOAD_SIZE, cfg->measure_number, 0);
 
     return NULL;
 }
@@ -145,7 +149,24 @@ static int do_recv(int sock, struct configuration* cfg)
     struct mdelayhdr mdelayhdr;
     memset(&mdelayhdr, 0, sizeof(mdelayhdr));
     memcpy(&mdelayhdr, buffer, sizeof(mdelayhdr));
-    printf("Packet %d - %d bytes\n", ntohl(mdelayhdr.seq), got);
+    int pktseq = ntohl(mdelayhdr.seq);
+    uint64_t t4 = ntoh64(mdelayhdr.t4);
+    printf("Packet %d - %d bytes type: %u\n", pktseq, got, mdelayhdr.type);
+    switch (mdelayhdr.type) {
+    case DELAY_RESP:;
+        struct timespec* ts_tmp = retrieve_timestamp(&msg);
+        p2pdelay_measurements[pktseq].recv_tt = ts_tmp[2].tv_sec * 1000000000ULL + ts_tmp[2].tv_nsec;
+        break;
+    case DELAY_RESP_FOLLOW_UP:
+        total_measurements += 1;
+        p2pdelay_measurements[pktseq].sent_tt = t4;
+        printf("slave->master delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
+        break;
+    default:
+        fprintf(stderr, "Unknown packet type\n");
+        exit(EXIT_FAILURE);
+    }
+
     return got;
 };
 
@@ -161,10 +182,11 @@ int main(int argc, char** argv)
     struct thread_args arg = { sock, &cfg };
     TRY(pthread_create(&thread, NULL, send_packets, &arg));
 
+    p2pdelay_measurements = calloc(100, sizeof(struct p2pdelay));
     int echo;
-    while (echo = do_recv(sock, &cfg) && echo > 0)
-        ;
+    while (echo = do_recv(sock, &cfg) && echo > 0 && total_measurements < cfg.measure_number) { }
     pthread_join(thread, NULL);
+    store_results_to_file("master_to_slave_latency.txt", p2pdelay_measurements, total_measurements);
     close(sock);
     return 0;
 }
