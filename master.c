@@ -186,6 +186,7 @@ int main(int argc, char** argv)
     int echo;
     while (echo = do_recv(sock, &cfg) && echo > 0 && total_measurements < cfg.measure_number) { }
     pthread_join(thread, NULL);
+    store_results_to_file("master_to_slave_latency.txt", p2pdelay_measurements, total_measurements);
     close(sock);
     return 0;
 }

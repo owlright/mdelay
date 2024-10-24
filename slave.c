@@ -182,11 +182,7 @@ int main(int argc, char** argv)
     while (got = do_recv(sock, &cfg) && got > 0 && total_measurements < cfg.measure_number)
         ;
 
-    FILE* f = fopen("p2p_latency.txt", "w");
-    for (int i = 0; i < total_measurements; ++i) {
-        fprintf(f, "%lu\n", p2pdelay_measurements[i].recv_tt - p2pdelay_measurements[i].sent_tt);
-    }
-    fclose(f);
+    store_results_to_file("slave_to_master_latency.txt", p2pdelay_measurements, total_measurements);
     close(sock);
     free(p2pdelay_measurements);
     return 0;
