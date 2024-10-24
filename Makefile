@@ -1,6 +1,8 @@
-all: timestamping sender master slave
-
 BIN_DIR := bin
+
+.PHONY: master slave # no need to check if master,slave,... exists because it's under dir bin
+
+all: timestamping sender master slave
 
 timestamping: rx_timestamping.c util.o $(BIN_DIR)
 	gcc -O2 rx_timestamping.c util.o -o $(BIN_DIR)/timestamping
@@ -16,11 +18,13 @@ run: timestamping
 send: sender
 	sudo ./$(BIN_DIR)/sender -i enp114s0 --dport 1337 --max 100
 
-slave: slave.c util.c
-	gcc -O2 slave.c util.c -o $(BIN_DIR)/slave
+slave: $(BIN_DIR)/slave
+$(BIN_DIR)/slave: slave.c util.c
+	gcc -O2 $^ -o $@
 
-master: master.c util.c
-	gcc -O2 master.c util.c -o $(BIN_DIR)/master -lpthread
+master: $(BIN_DIR)/master
+$(BIN_DIR)/master: master.c util.c
+	gcc -O2 $^ -o $@ -lpthread
 
 tai: tool/set_tai_offset.c
 	gcc $^ -o $(BIN_DIR)/$@
