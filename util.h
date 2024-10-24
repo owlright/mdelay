@@ -39,6 +39,12 @@
             exit(1);                                                                                                   \
         }                                                                                                              \
     } while (0)
+
+struct p2pdelay {
+    uint64_t sent_tt; // tt is shortcut for timestamp
+    uint64_t recv_tt;
+};
+
 uint64_t hton64(uint64_t value);
 uint64_t ntoh64(uint64_t value);
 void do_ts_sockopt(int sock);

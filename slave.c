@@ -11,11 +11,6 @@
 #define PAYLOAD_SIZE 900
 static uint64_t total_measurements = 0;
 
-struct p2pdelay {
-    uint64_t sent_tt; // tt is shortcut for timestamp
-    uint64_t recv_tt;
-};
-
 static struct p2pdelay* p2pdelay_measurements = NULL;
 
 struct configuration {
