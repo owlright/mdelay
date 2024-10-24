@@ -153,18 +153,18 @@ static int do_recv(int sock, struct configuration* cfg)
     uint64_t t4 = ntoh64(mdelayhdr.t4);
     printf("Packet %d - %d bytes type: %u\n", pktseq, got, mdelayhdr.type);
     switch (mdelayhdr.type) {
-        case DELAY_RESP:
-            struct timespec* ts_tmp = retrieve_timestamp(&msg);
-            p2pdelay_measurements[pktseq].recv_tt = ts_tmp[2].tv_sec * 1000000000ULL + ts_tmp[2].tv_nsec;
-            break;
-        case DELAY_RESP_FOLLOW_UP:
-            total_measurements += 1;
-            p2pdelay_measurements[pktseq].sent_tt = t4;
-            printf("p2p delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
-            break;
-        default:
-            fprintf(stderr, "Unknown packet type\n");
-            exit(EXIT_FAILURE);
+    case DELAY_RESP:
+        struct timespec* ts_tmp = retrieve_timestamp(&msg);
+        p2pdelay_measurements[pktseq].recv_tt = ts_tmp[2].tv_sec * 1000000000ULL + ts_tmp[2].tv_nsec;
+        break;
+    case DELAY_RESP_FOLLOW_UP:
+        total_measurements += 1;
+        p2pdelay_measurements[pktseq].sent_tt = t4;
+        printf("slave->master delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
+        break;
+    default:
+        fprintf(stderr, "Unknown packet type\n");
+        exit(EXIT_FAILURE);
     }
 
     return got;

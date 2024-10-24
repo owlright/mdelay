@@ -152,7 +152,7 @@ static int do_recv(int sock, struct configuration* cfg)
     case DELAY_REQ_FOLLOW_UP:
         total_measurements += 1; // REQ and REQ_FOLLOW_UP pair is seen as one measurement
         p2pdelay_measurements[pktseq].sent_tt = t2;
-        printf("p2p delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
+        printf("master->slave delay is %lu ns.\n", p2pdelay_measurements[pktseq].recv_tt - p2pdelay_measurements[pktseq].sent_tt);
         send_udp_packets_timestamp(sock, &host_address, DELAY_RESP, PAYLOAD_SIZE - 10, 1, pktseq);
         break;
     default:
