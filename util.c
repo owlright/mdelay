@@ -169,7 +169,7 @@ void send_udp_packets_timestamp(int sock, const struct sockaddr_in* dsa, int pkt
 
 void store_results_to_file(const char* filename, const struct p2pdelay* p2pdelay_measurements, uint64_t total_measurements) {
     TEST(p2pdelay_measurements != NULL);
-    FILE* f = fopen("master_to_slave_latency.txt", "w");
+    FILE* f = fopen(filename, "w");
     for (int i = 0; i < total_measurements; ++i) {
         fprintf(f, "%lu\n", p2pdelay_measurements[i].recv_tt - p2pdelay_measurements[i].sent_tt);
     }
