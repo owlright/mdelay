@@ -184,8 +184,7 @@ int main(int argc, char** argv)
 
     p2pdelay_measurements = calloc(100, sizeof(struct p2pdelay));
     int echo;
-    while (echo = do_recv(sock, &cfg) && echo > 0)
-        ;
+    while (echo = do_recv(sock, &cfg) && echo > 0 && total_measurements < cfg.measure_number) { }
     pthread_join(thread, NULL);
     close(sock);
     return 0;
