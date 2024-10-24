@@ -20,7 +20,7 @@ static struct p2pdelay* p2pdelay_measurements = NULL;
 
 struct configuration {
     int protocol; /* IPPROTO_TCP or IPPROTO_UDP */
-    int max_number;
+    int measure_number;
     unsigned short port;
     /* below are context */
     const char* remote_ip;
@@ -37,7 +37,7 @@ void parse_options(int argc, char** argv, struct configuration* cfg)
     while (opt != -1) {
         switch (opt) {
         case 'n':
-            cfg->max_number = atoi(optarg);
+            cfg->measure_number = atoi(optarg);
             break;
         case 'u':
             cfg->protocol = IPPROTO_UDP;
@@ -174,7 +174,7 @@ int main(int argc, char** argv)
     struct configuration cfg;
     parse_options(argc, argv, &cfg);
     int parent, sock;
-    p2pdelay_measurements = calloc(cfg.max_number, sizeof(struct p2pdelay));
+    p2pdelay_measurements = calloc(cfg.measure_number, sizeof(struct p2pdelay));
     if (cfg.protocol == IPPROTO_TCP) {
         parent = create_listen_socket(&cfg);
         sock = accept_child(parent, &cfg);
@@ -184,7 +184,7 @@ int main(int argc, char** argv)
     }
     do_ts_sockopt(sock);
     int got;
-    while (got = do_recv(sock, &cfg) && got > 0 && total_measurements < cfg.max_number)
+    while (got = do_recv(sock, &cfg) && got > 0 && total_measurements < cfg.measure_number)
         ;
 
     FILE* f = fopen("p2p_latency.txt", "w");

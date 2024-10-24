@@ -15,7 +15,7 @@ struct configuration {
     const char* slave_ip;
     unsigned short sport; // source port
     unsigned short dport; // destination port
-    unsigned int max_packets; /* Stop after this many (0=forever) */
+    unsigned int measure_number; /* Stop after this many (0=forever) */
 };
 
 void parse_options(int argc, char** argv, struct configuration* cfg)
@@ -35,7 +35,7 @@ void parse_options(int argc, char** argv, struct configuration* cfg)
     cfg->protocol = IPPROTO_TCP;
     cfg->sport = 9336;
     cfg->dport = 9337;
-    cfg->max_packets = 10;
+    cfg->measure_number = 10;
     opt = getopt(argc, argv, optstring);
     while (opt != -1) {
         switch (opt) {
@@ -52,7 +52,7 @@ void parse_options(int argc, char** argv, struct configuration* cfg)
             cfg->protocol = IPPROTO_UDP;
             break;
         case 'n':
-            cfg->max_packets = atoi(optarg);
+            cfg->measure_number = atoi(optarg);
             break;
         default:
             exit(EXIT_FAILURE);
@@ -114,7 +114,7 @@ void* send_packets(void* arg)
     sa.sin_family = AF_INET;
     sa.sin_port = htons(cfg->dport);
     sa.sin_addr.s_addr = inet_addr(cfg->slave_ip);
-    send_udp_packets_timestamp(fd, &sa, DELAY_REQ, PAYLOAD_SIZE, cfg->max_packets);
+    send_udp_packets_timestamp(fd, &sa, DELAY_REQ, PAYLOAD_SIZE, cfg->measure_number);
 
     return NULL;
 }
