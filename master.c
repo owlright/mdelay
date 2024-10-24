@@ -153,7 +153,7 @@ static int do_recv(int sock, struct configuration* cfg)
     uint64_t t4 = ntoh64(mdelayhdr.t4);
     printf("Packet %d - %d bytes type: %u\n", pktseq, got, mdelayhdr.type);
     switch (mdelayhdr.type) {
-    case DELAY_RESP:
+    case DELAY_RESP:;
         struct timespec* ts_tmp = retrieve_timestamp(&msg);
         p2pdelay_measurements[pktseq].recv_tt = ts_tmp[2].tv_sec * 1000000000ULL + ts_tmp[2].tv_nsec;
         break;
